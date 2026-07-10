@@ -18,11 +18,12 @@ def run_web():
 def get_menu_markup():
     keyboard = [
         [InlineKeyboardButton("💰 Adiciona Saldo", callback_data='saldo')],
-        [InlineKeyboardButton("💳 CC FULL DADOS", callback_data='cc'), InlineKeyboardButton("🎲 Mix's", callback_data='mix')],
-        [InlineKeyboardButton("🏦 Busca banco", callback_data='banco'), InlineKeyboardButton("🔍 Busca bin", callback_data='bin'), InlineKeyboardButton("🌎 Busca país", callback_data='pais')],
+        [InlineKeyboardButton("💳 CC FULL DADOS", callback_data='cc')],
+        [InlineKeyboardButton("🔍 Busca bin", callback_data='bin')],
         [InlineKeyboardButton("« volta", callback_data='start')]
     ]
     return InlineKeyboardMarkup(keyboard)
+
 
 async def start(update, context):
     texto = (
