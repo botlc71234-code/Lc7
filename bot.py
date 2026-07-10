@@ -120,8 +120,8 @@ async def button(update, context):
             user_id = update.effective_user.id
             if users_db.get(user_id, {}).get("saldo", 0) >= produto['preco']:
                 users_db[user_id]["saldo"] -= produto['preco']
-                await query.message.reply_text(produto['completo'], parse_mode='Markdown')
-                await query.answer("Compra realizada com sucesso!", show_alert=True)
+                await query.answer("Compra realizada!", show_alert=True)
+                await context.bot.send_message(chat_id=update.effective_chat.id, text=produto['completo'], parse_mode='Markdown')
             else:
                 await query.answer("❌ Saldo insuficiente!", show_alert=True)
     elif query.data == 'perfil':
@@ -142,4 +142,4 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("addsaldo", admin_add_saldo))
     app.add_handler(CallbackQueryHandler(button))
     app.run_polling()
-    
+                
