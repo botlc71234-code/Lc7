@@ -14,7 +14,7 @@ def run_web():
     port = int(os.environ.get("PORT", 8080))
     app_web.run(host='0.0.0.0', port=port)
 
-# --- FUNÇÃO DO MENU (REGRAS E BOTÕES) ---
+# --- MENU COM OS 3 BOTÕES ---
 def get_menu_markup():
     keyboard = [
         [InlineKeyboardButton("💰 Adiciona Saldo", callback_data='saldo')],
@@ -24,7 +24,7 @@ def get_menu_markup():
     ]
     return InlineKeyboardMarkup(keyboard)
 
-
+# --- COMANDO /START ---
 async def start(update, context):
     texto = (
         "👋 SEJA BEM-VINDO A OROCHI_STORE AS MELHORES FULL DADOS ESTAO AQUI 🚀\n"
@@ -32,10 +32,10 @@ async def start(update, context):
         "📊 MATERIAL PREMIUM DE ADMIN FULL DADOS COM GARANTIA DE CPF 100% BATENDO!\n"
         "🔍 PARA CONSULTAR CPF ANTES DA COMPRA, BASTAR TER 30$ DE SALDO DISPONIVEL NO BOT."
     )
-    # Botões da mensagem inicial
+    
     keyboard = [
         [InlineKeyboardButton("Menu", callback_data='menu'), InlineKeyboardButton("Seu Perfil", callback_data='perfil')],
-        [InlineKeyboardButton("🛠️ SUPORTE", callback_data='suporte')],
+        [InlineKeyboardButton("🛠️ SUPORTE", url="https://wa.me/5511999999999")], 
         [InlineKeyboardButton("⚠️ REGRAS DE TROCA⚠️", callback_data='regras')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -54,7 +54,7 @@ async def button(update, context):
         texto_menu = (
             "⚠️ REGRAS DE TROCA⚠️\n"
             "🗃️ PARA SOLICITAR TROCA, É OBRIGATÓRIO:\n"
-            "✅SOLICITAR DENTRO DO PRAZO DE 5 MINUTOS APÓS A COMPRA.\n"
+            "✅ SOLICITAR DENTRO DO PRAZO DE 5 MINUTOS APÓS A COMPRA.\n"
             "🧪 TESTES DEVEM SER FEITOS EXCLUSIVAMENTE NO GPAY.\n"
             "🔗 LINK DA GPAY: https://payments.google.com/gp/w/u/0/home/paymentmethods\n"
             "⏱️ CCS FORA DO PRAZO NÃO TERÃO DIREITO À TROCA."
@@ -63,13 +63,12 @@ async def button(update, context):
 
     elif query.data == 'start':
         await start(update, context)
-
+    
     elif query.data == 'perfil':
         await query.edit_message_text("👤 Perfil: Você está conectado.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« volta", callback_data='start')]]))
     
-    # Aqui você adiciona a lógica para cada botão do menu abaixo:
-    elif query.data == 'saldo':
-        await query.answer("Redirecionando para depósito...")
+    elif query.data == 'regras':
+        await query.edit_message_text("⚠️ Regras: Solicite troca em até 5 minutos com vídeo (GPAY).", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« volta", callback_data='start')]]))
 
 # --- INICIALIZAÇÃO ---
 if __name__ == '__main__':
