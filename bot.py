@@ -7,7 +7,7 @@ from threading import Thread
 # --- BANCO DE DADOS SIMPLES (Memória) ---
 users_db = {}
 
-# --- VITRINE DE PRODUTOS (Adicionada) ---
+# --- VITRINE DE PRODUTOS ---
 produtos = [
     {
         "id": 1,
@@ -35,7 +35,25 @@ def run_web():
     port = int(os.environ.get("PORT", 8080))
     app_web.run(host='0.0.0.0', port=port)
 
-# --- MENU COM OS 3 BOTÕES ---
+# --- FUNÇÃO PARA EXIBIR PRODUTO ---
+async def exibir_produto(query, idx):
+    idx = max(0, min(idx, len(produtos) - 1))
+    p = produtos[idx]
+    
+    texto = f"📦 *Item {idx + 1} de {len(produtos)}*\n\n{p['demonstracao']}"
+    
+    keyboard = [
+        [
+            InlineKeyboardButton("« Anterior", callback_data=f'prod_prev_{idx}'),
+            InlineKeyboardButton("Próximo »", callback_data=f'prod_next_{idx}')
+        ],
+        [InlineKeyboardButton(f"💰 COMPRAR - R$ {p['preco']:.2f}", callback_data=f'prod_buy_{idx}')],
+        [InlineKeyboardButton("« volta ao menu", callback_data='menu')]
+    ]
+    
+    await query.edit_message_text(texto, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+# --- MENU PRINCIPAL ---
 def get_menu_markup():
     keyboard = [
         [InlineKeyboardButton("💰 Adiciona Saldo", callback_data='saldo')],
@@ -74,31 +92,29 @@ async def start(update, context):
 async def button(update, context):
     query = update.callback_query
     await query.answer()
-    user_id = update.effective_user.id
-
+    
     if query.data == 'menu':
-        texto_menu = "Escolha uma opção no menu abaixo:"
-        await query.edit_message_text(texto_menu, reply_markup=get_menu_markup())
-
-    elif query.data == 'perfil':
-        saldo = users_db.get(user_id, {}).get("saldo", 0.00)
-        texto_perfil = (
-            f"👤 **SEU PERFIL**\n\n"
-            f"🆔 ID: `{user_id}`\n"
-            f"💰 SALDO: R$ {saldo:.2f}\n\n"
-            "Use o menu principal para adicionar saldo."
-        )
-        keyboard = [[InlineKeyboardButton("« volta", callback_data='start')]]
-        await query.edit_message_text(texto_perfil, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        await query.edit_message_text("Escolha uma opção no menu abaixo:", reply_markup=get_menu_markup())
 
     elif query.data == 'cc':
-        # Exibe os itens da sua lista de produtos
-        texto_cc = "💳 **VITRINE DE PRODUTOS**\n\n"
-        for p in produtos:
-            texto_cc += f"📦 *Item {p['id']}:* {p['nome']} - {p['preco']:.2f}\n"
-        
-        keyboard = [[InlineKeyboardButton("« volta", callback_data='menu')]]
-        await query.edit_message_text(texto_cc, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        await exibir_produto(query, 0)
+
+    elif query.data.startswith('prod_'):
+        _, acao, idx = query.data.split('_')
+        idx = int(idx)
+        if acao == 'prev':
+            await exibir_produto(query, idx - 1)
+        elif acao == 'next':
+            await exibir_produto(query, idx + 1)
+        elif acao == 'buy':
+            await query.answer("Processando compra...", show_alert=True)
+            await query.message.reply_text(f"✅ Compra do Item {idx + 1} iniciada!")
+
+    elif query.data == 'perfil':
+        user_id = update.effective_user.id
+        saldo = users_db.get(user_id, {}).get("saldo", 0.00)
+        texto_perfil = f"👤 **SEU PERFIL**\n\n🆔 ID: `{user_id}`\n💰 SALDO: R$ {saldo:.2f}\n\nUse o menu principal para adicionar saldo."
+        await query.edit_message_text(texto_perfil, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« volta", callback_data='start')]]), parse_mode='Markdown')
 
     elif query.data == 'start':
         await start(update, context)
@@ -106,14 +122,11 @@ async def button(update, context):
     elif query.data == 'regras':
         await query.edit_message_text("⚠️ Regras: Solicite troca em até 5 minutos com vídeo (GPAY).", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« volta", callback_data='start')]]))
 
-# --- INICIALIZAÇÃO ---
 if __name__ == '__main__':
     Thread(target=run_web).start()
     TOKEN = os.environ.get("TELEGRAM_TOKEN")
     app = ApplicationBuilder().token(TOKEN).build()
-    
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button))
-    
     app.run_polling()
-        
+    
