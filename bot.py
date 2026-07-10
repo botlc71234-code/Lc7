@@ -58,6 +58,9 @@ async def admin_add_saldo(update, context):
 
 # --- FUNÇÃO EXIBIR PRODUTO ---
 async def exibir_produto(query, idx):
+    if not produtos:
+        await query.edit_message_text("❌ Não há mais produtos disponíveis no momento.")
+        return
     idx = max(0, min(idx, len(produtos) - 1))
     p = produtos[idx]
     texto = f"📦 *Item {idx + 1} de {len(produtos)}*\n\n{p['demonstracao']}\n\n⠀"
@@ -122,6 +125,14 @@ async def button(update, context):
                 users_db[user_id]["saldo"] -= produto['preco']
                 await query.answer("Compra realizada!", show_alert=True)
                 await context.bot.send_message(chat_id=update.effective_chat.id, text=produto['completo'], parse_mode='Markdown')
+                
+                # Remove o produto vendido
+                produtos.pop(idx)
+                
+                if len(produtos) > 0:
+                    await exibir_produto(query, 0)
+                else:
+                    await query.edit_message_text("❌ Nenhum produto disponível.")
             else:
                 await query.answer("❌ Saldo insuficiente!", show_alert=True)
     elif query.data == 'perfil':
@@ -142,4 +153,4 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("addsaldo", admin_add_saldo))
     app.add_handler(CallbackQueryHandler(button))
     app.run_polling()
-                
+    
