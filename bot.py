@@ -4,6 +4,10 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 from flask import Flask
 from threading import Thread
 
+# --- BANCO DE DADOS SIMPLES (Memória) ---
+# Armazena saldo e ID. Ex: {123456789: {"saldo": 0}}
+users_db = {}
+
 # --- CONFIGURAÇÃO DO FLASK ---
 app_web = Flask(__name__)
 @app_web.route('/')
@@ -26,6 +30,11 @@ def get_menu_markup():
 
 # --- COMANDO /START ---
 async def start(update, context):
+    # Registra o usuário no banco se ele não existir
+    user_id = update.effective_user.id
+    if user_id not in users_db:
+        users_db[user_id] = {"saldo": 0.00}
+
     texto = (
         "👋 SEJA BEM-VINDO A OROCHI_STORE AS MELHORES FULL DADOS ESTAO AQUI 🚀\n"
         "✅ MATERIAL 100% VIRGEM✅\n"
@@ -49,23 +58,26 @@ async def start(update, context):
 async def button(update, context):
     query = update.callback_query
     await query.answer()
+    user_id = update.effective_user.id
 
     if query.data == 'menu':
-        texto_menu = (
-            "⚠️ REGRAS DE TROCA⚠️\n"
-            "🗃️ PARA SOLICITAR TROCA, É OBRIGATÓRIO:\n"
-            "✅ SOLICITAR DENTRO DO PRAZO DE 5 MINUTOS APÓS A COMPRA.\n"
-            "🧪 TESTES DEVEM SER FEITOS EXCLUSIVAMENTE NO GPAY.\n"
-            "🔗 LINK DA GPAY: https://payments.google.com/gp/w/u/0/home/paymentmethods\n"
-            "⏱️ CCS FORA DO PRAZO NÃO TERÃO DIREITO À TROCA."
-        )
+        texto_menu = "Escolha uma opção no menu abaixo:"
         await query.edit_message_text(texto_menu, reply_markup=get_menu_markup())
+
+    elif query.data == 'perfil':
+        # Busca os dados do usuário no dicionário
+        saldo = users_db.get(user_id, {}).get("saldo", 0.00)
+        texto_perfil = (
+            f"👤 **SEU PERFIL**\n\n"
+            f"🆔 ID: `{user_id}`\n"
+            f"💰 SALDO: R$ {saldo:.2f}\n\n"
+            "Use o menu principal para adicionar saldo."
+        )
+        keyboard = [[InlineKeyboardButton("« volta", callback_data='start')]]
+        await query.edit_message_text(texto_perfil, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
 
     elif query.data == 'start':
         await start(update, context)
-    
-    elif query.data == 'perfil':
-        await query.edit_message_text("👤 Perfil: Você está conectado.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« volta", callback_data='start')]]))
     
     elif query.data == 'regras':
         await query.edit_message_text("⚠️ Regras: Solicite troca em até 5 minutos com vídeo (GPAY).", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« volta", callback_data='start')]]))
