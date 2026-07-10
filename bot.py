@@ -4,7 +4,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 from flask import Flask
 from threading import Thread
 
-# --- CONFIGURAÇÃO DO FLASK ---
+# --- CONFIGURAÇÃO DO FLASK (Para manter o bot ativo no Render) ---
 app_web = Flask(__name__)
 @app_web.route('/')
 def home():
@@ -14,7 +14,7 @@ def run_web():
     port = int(os.environ.get("PORT", 8080))
     app_web.run(host='0.0.0.0', port=port)
 
-# --- MENSAGEM PRINCIPAL COM BOTÕES ---
+# --- COMANDO /START ---
 async def start(update, context):
     texto = (
         "👋 SEJA BEM-VINDO A OROCHI_STORE AS MELHORES FULL DADOS ESTAO AQUI 🚀\n"
@@ -28,17 +28,23 @@ async def start(update, context):
         "📲 DUVIDAS OU PROBLEMAS? FALE COM NOSSO SUPORTE @SUPORTEOROCHICCS"
     )
 
-    # Criando os botões
     keyboard = [
         [InlineKeyboardButton("Menu", callback_data='menu'), InlineKeyboardButton("Seu Perfil", callback_data='perfil')],
         [InlineKeyboardButton("🛠️ SUPORTE", callback_data='suporte')],
         [InlineKeyboardButton("⚠️ REGRAS DE TROCA⚠️", callback_data='regras')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-
     await update.message.reply_text(texto, reply_markup=reply_markup)
 
-# --- GERENCIADOR DE CLIQUES NOS BOTÕES ---
+# --- COMANDO /BIN ---
+async def bin_command(update, context):
+    await update.message.reply_text(
+        "💳 **MENU DE BINS**\n\n"
+        "Escolha uma opção abaixo para consultar ou ver listas:\n"
+        "Exemplo: Consulte sua BIN disponível."
+    )
+
+# --- GERENCIADOR DE BOTÕES ---
 async def button(update, context):
     query = update.callback_query
     await query.answer()
@@ -54,11 +60,15 @@ async def button(update, context):
 
 # --- INICIALIZAÇÃO ---
 if __name__ == '__main__':
+    # Inicia o servidor web em uma thread separada
     Thread(target=run_web).start()
+    
     TOKEN = os.environ.get("TELEGRAM_TOKEN")
     app = ApplicationBuilder().token(TOKEN).build()
     
+    # Adiciona os comandos
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("bin", bin_command))
     app.add_handler(CallbackQueryHandler(button))
     
     app.run_polling()
