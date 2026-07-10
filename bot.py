@@ -62,18 +62,6 @@ async def button(update, context):
         texto_menu = "Escolha uma opção no menu abaixo:"
         await query.edit_message_text(texto_menu, reply_markup=get_menu_markup())
 
-    elif query.data == 'cc':
-        # EDITE AQUI SUAS FRASES DE CC
-        texto_cc = (
-            "💳 **LISTA DE CC FULL DADOS**\n\n"
-            "🌟 CC GOLD: Qualidade Premium\n"
-            "🔥 CC PLATINUM: Aprovacão garantida\n"
-            "💎 CC BLACK: Nível superior\n\n"
-            "Selecione uma categoria para visualizar os preços."
-        )
-        keyboard = [[InlineKeyboardButton("« volta", callback_data='menu')]]
-        await query.edit_message_text(texto_cc, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
-
     elif query.data == 'perfil':
         saldo = users_db.get(user_id, {}).get("saldo", 0.00)
         texto_perfil = (
@@ -85,12 +73,31 @@ async def button(update, context):
         keyboard = [[InlineKeyboardButton("« volta", callback_data='start')]]
         await query.edit_message_text(texto_perfil, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
 
+    elif query.data == 'cc':
+        texto_cc = (
+            "🔍 *Mostrando 1 de 10*\n\n"
+            "✨ *Detalhes do cartão*\n"
+            "💳 *Cartão:* `5162921641114434`\n"
+            "📅 *Validade:* 07/2033\n"
+            "🔒 *Cvv:* 363\n\n"
+            "🏳️ *Bandeira:* mastercard\n"
+            "💎 *Nível:* nubank platinum\n"
+            "⚜️ *Tipo:* credit\n"
+            "🏛️ *Banco:* nu pagamentos sa\n"
+            "🌎 *Pais:* brazil\n\n"
+            "👤 *Nome:*\nvanessa g almeida\n"
+            "🪪 *cpf:*\n25845634873\n\n"
+            "💸 *Valor:* R$ 28.00\n"
+            "📅 *Comprada em* 04/07/2026 ás 17:42:11"
+        )
+        keyboard = [[InlineKeyboardButton("« volta", callback_data='menu')]]
+        await query.edit_message_text(texto_cc, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
     elif query.data == 'start':
         await start(update, context)
     
     elif query.data == 'regras':
-        keyboard = [[InlineKeyboardButton("« volta", callback_data='start')]]
-        await query.edit_message_text("⚠️ Regras: Solicite troca em até 5 minutos com vídeo (GPAY).", reply_markup=InlineKeyboardMarkup(keyboard))
+        await query.edit_message_text("⚠️ Regras: Solicite troca em até 5 minutos com vídeo (GPAY).", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« volta", callback_data='start')]]))
 
 # --- INICIALIZAÇÃO ---
 if __name__ == '__main__':
