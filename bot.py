@@ -5,7 +5,6 @@ from flask import Flask
 from threading import Thread
 
 # --- BANCO DE DADOS SIMPLES (Memória) ---
-# Armazena saldo e ID. Ex: {123456789: {"saldo": 0}}
 users_db = {}
 
 # --- CONFIGURAÇÃO DO FLASK ---
@@ -30,7 +29,6 @@ def get_menu_markup():
 
 # --- COMANDO /START ---
 async def start(update, context):
-    # Registra o usuário no banco se ele não existir
     user_id = update.effective_user.id
     if user_id not in users_db:
         users_db[user_id] = {"saldo": 0.00}
@@ -64,8 +62,19 @@ async def button(update, context):
         texto_menu = "Escolha uma opção no menu abaixo:"
         await query.edit_message_text(texto_menu, reply_markup=get_menu_markup())
 
+    elif query.data == 'cc':
+        # EDITE AQUI SUAS FRASES DE CC
+        texto_cc = (
+            "💳 **LISTA DE CC FULL DADOS**\n\n"
+            "🌟 CC GOLD: Qualidade Premium\n"
+            "🔥 CC PLATINUM: Aprovacão garantida\n"
+            "💎 CC BLACK: Nível superior\n\n"
+            "Selecione uma categoria para visualizar os preços."
+        )
+        keyboard = [[InlineKeyboardButton("« volta", callback_data='menu')]]
+        await query.edit_message_text(texto_cc, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
     elif query.data == 'perfil':
-        # Busca os dados do usuário no dicionário
         saldo = users_db.get(user_id, {}).get("saldo", 0.00)
         texto_perfil = (
             f"👤 **SEU PERFIL**\n\n"
@@ -80,7 +89,8 @@ async def button(update, context):
         await start(update, context)
     
     elif query.data == 'regras':
-        await query.edit_message_text("⚠️ Regras: Solicite troca em até 5 minutos com vídeo (GPAY).", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« volta", callback_data='start')]]))
+        keyboard = [[InlineKeyboardButton("« volta", callback_data='start')]]
+        await query.edit_message_text("⚠️ Regras: Solicite troca em até 5 minutos com vídeo (GPAY).", reply_markup=InlineKeyboardMarkup(keyboard))
 
 # --- INICIALIZAÇÃO ---
 if __name__ == '__main__':
