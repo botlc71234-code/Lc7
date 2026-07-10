@@ -1,46 +1,44 @@
 import os
 import logging
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram.ext import ApplicationBuilder, CommandHandler
+from flask import Flask
+from threading import Thread
 
-# Configuração básica de log para vermos se o bot está funcionando
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
+# Configuração do Flask (Para o Render não desligar o bot)
+app_web = Flask(__name__)
+
+@app_web.route('/')
+def home():
+    return "Bot Lc7 está online!"
+
+def run_web():
+    app_web.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8080)))
 
 # --- FUNÇÕES DOS COMANDOS ---
+async def start(update, context):
+    await update.message.reply_text("Olá! Sou o bot Lc7. Use /perfil, /comprar ou /suporte.")
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Olá! Sou seu bot. Use os comandos:\n/perfil - Ver dados\n/comprar - Ver produtos\n/suporte - Ajuda")
-
-async def perfil(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Aqui você pode expandir para buscar dados reais
+async def perfil(update, context):
     await update.message.reply_text("👤 Perfil: Você está conectado ao bot do repositório Lc7.")
 
-async def comprar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def comprar(update, context):
     await update.message.reply_text("🛒 Menu de Compras: (Em breve integraremos com métodos de pagamento).")
 
-async def suporte(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def suporte(update, context):
     await update.message.reply_text("🛠️ Suporte: Se tiver dúvidas, abra uma issue no nosso GitHub!")
 
 # --- INICIALIZAÇÃO ---
-
 if __name__ == '__main__':
-    # O token será pego de forma segura nas configurações do Render
+    # Inicia o servidor Flask em uma thread separada
+    Thread(target=run_web).start()
+
     TOKEN = os.environ.get("TELEGRAM_TOKEN")
+    app = ApplicationBuilder().token(TOKEN).build()
     
-    if not TOKEN:
-        print("Erro: TELEGRAM_TOKEN não configurado!")
-    else:
-        app = ApplicationBuilder().token(TOKEN).build()
-        
-        # Adiciona os comandos
-        app.add_handler(CommandHandler("start", start))
-        app.add_handler(CommandHandler("perfil", perfil))
-        app.add_handler(CommandHandler("comprar", comprar))
-        app.add_handler(CommandHandler("suporte", suporte))
-        
-        print("Bot iniciado...")
-        app.run_polling()
-      
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("perfil", perfil))
+    app.add_handler(CommandHandler("comprar", comprar))
+    app.add_handler(CommandHandler("suporte", suporte))
+    
+    app.run_polling()
+    
