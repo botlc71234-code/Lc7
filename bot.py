@@ -1,6 +1,6 @@
 import os
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 from flask import Flask
 from threading import Thread
 
@@ -52,6 +52,27 @@ async def start(update, context):
     else:
         await update.callback_query.edit_message_text(texto, reply_markup=reply_markup)
 
+# --- GERENCIADOR DE MENSAGENS (BUSCA BIN) ---
+async def buscar_bin(update, context):
+    mensagem = update.message.text.split()
+    if len(mensagem) > 1:
+        bin_digitada = mensagem[1]
+        # AQUI VOCÊ EDITA AS FRASES PARA CADA BIN
+        if bin_digitada == "516262":
+            resultado = (
+                f"🔍 **RESULTADO DA BIN: {bin_digitada}**\n\n"
+                "🏦 Banco: Nubank\n"
+                "💠 Nível: Gold\n"
+                "⚜ Tipo: Crédito\n"
+                "✅ BIN Aprovada e testada!"
+            )
+        else:
+            resultado = f"❌ BIN {bin_digitada} não encontrada ou inválida."
+        
+        await update.message.reply_text(resultado, parse_mode='Markdown')
+    else:
+        await update.message.reply_text("⚠️ Por favor, digite /bin seguido do número. Exemplo: /bin 516262")
+
 # --- GERENCIADOR DE BOTÕES ---
 async def button(update, context):
     query = update.callback_query
@@ -62,14 +83,15 @@ async def button(update, context):
         texto_menu = "Escolha uma opção no menu abaixo:"
         await query.edit_message_text(texto_menu, reply_markup=get_menu_markup())
 
+    elif query.data == 'bin':
+        await query.edit_message_text("Digite /bin seguido dos 6 primeiros números do cartão.\nExemplo: /bin 516262")
+
     elif query.data == 'cc':
-        # EDITE AQUI SUAS FRASES DE CC
         texto_cc = (
             "💳 **LISTA DE CC FULL DADOS**\n\n"
-            "🌟 CC GOLD: Qualidade Premium\n"
-            "🔥 CC PLATINUM: Aprovacão garantida\n"
-            "💎 CC BLACK: Nível superior\n"
-            "🚀 MATERIAL COM ALTA TAXA DE APROVAÇÃO E DADOS ATUALIZADOS!\n\n"
+            "✨ **Detalhes do cartão**\n"
+            "💳 cartão: `55020962828282`\n"
+            "✅ INFORMAÇÕES VIRGENS DIRETO DO ADMIN (SNIFFER)\n\n"
             "Selecione uma categoria para visualizar os preços."
         )
         keyboard = [[InlineKeyboardButton("« volta", callback_data='menu')]]
@@ -77,12 +99,7 @@ async def button(update, context):
 
     elif query.data == 'perfil':
         saldo = users_db.get(user_id, {}).get("saldo", 0.00)
-        texto_perfil = (
-            f"👤 **SEU PERFIL**\n\n"
-            f"🆔 ID: `{user_id}`\n"
-            f"💰 SALDO: R$ {saldo:.2f}\n\n"
-            "Use o menu principal para adicionar saldo."
-        )
+        texto_perfil = (f"👤 **SEU PERFIL**\n\n💰 SALDO: R$ {saldo:.2f}")
         keyboard = [[InlineKeyboardButton("« volta", callback_data='start')]]
         await query.edit_message_text(texto_perfil, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
 
@@ -91,7 +108,7 @@ async def button(update, context):
     
     elif query.data == 'regras':
         keyboard = [[InlineKeyboardButton("« volta", callback_data='start')]]
-        await query.edit_message_text("⚠️ Regras: Solicite troca em até 5 minutos com vídeo (GPAY).", reply_markup=InlineKeyboardMarkup(keyboard))
+        await query.edit_message_text("⚠️ Regras: Solicite troca em até 5 minutos com vídeo.", reply_markup=InlineKeyboardMarkup(keyboard))
 
 # --- INICIALIZAÇÃO ---
 if __name__ == '__main__':
@@ -100,7 +117,8 @@ if __name__ == '__main__':
     app = ApplicationBuilder().token(TOKEN).build()
     
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("bin", buscar_bin)) # Adicionado o comando /bin
     app.add_handler(CallbackQueryHandler(button))
     
     app.run_polling()
-        
+    
