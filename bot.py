@@ -4,6 +4,28 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 from flask import Flask
 from threading import Thread
 
+# --- LISTA DE PRODUTOS ---
+produtos = {
+    'cc_1': {
+        'nome': "Nubank Platinum",
+        'preco': 28.00,
+        'previa': "💳 Cartão: 516292******4434\n🔒 Cvv: ***\n💰 Preço: R$ 28.00",
+        'completo': "✨ Detalhes (LIBERADO)\n💳 Cartão: 5162921641114434\n🔒 Cvv: 363"
+    },
+    'cc_2': {
+        'nome': "Inter Gold",
+        'preco': 40.00,
+        'previa': "💳 Cartão: 523155******1234\n🔒 Cvv: ***\n💰 Preço: R$ 40.00",
+        'completo': "✨ Detalhes (LIBERADO)\n💳 Cartão: 5231551234567890\n🔒 Cvv: 999"
+    },
+    'cc_3': {
+        'nome': "Itaú Platinum",
+        'preco': 35.00,
+        'previa': "💳 Cartão: 401178******5678\n🔒 Cvv: ***\n💰 Preço: R$ 35.00",
+        'completo': "✨ Detalhes (LIBERADO)\n💳 Cartão: 4011789999995678\n🔒 Cvv: 123"
+    }
+}
+
 # --- BANCO DE DADOS SIMPLES (Memória) ---
 users_db = {}
 
@@ -74,24 +96,20 @@ async def button(update, context):
         await query.edit_message_text(texto_perfil, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
 
     elif query.data == 'cc':
-        texto_cc = (
-            "🔍 *Mostrando 1 de 10*\n\n"
-            "✨ *Detalhes do cartão*\n"
-            "💳 *Cartão:* `5162921641114434`\n"
-            "📅 *Validade:* 07/2033\n"
-            "🔒 *Cvv:* 363\n\n"
-            "🏳️ *Bandeira:* mastercard\n"
-            "💎 *Nível:* nubank platinum\n"
-            "⚜️ *Tipo:* credit\n"
-            "🏛️ *Banco:* nu pagamentos sa\n"
-            "🌎 *Pais:* brazil\n\n"
-            "👤 *Nome:*\nvanessa g almeida\n"
-            "🪪 *cpf:*\n25845634873\n\n"
-            "💸 *Valor:* R$ 28.00\n"
-            "📅 *Comprada em* 04/07/2026 ás 17:42:11"
-        )
-        keyboard = [[InlineKeyboardButton("« volta", callback_data='menu')]]
-        await query.edit_message_text(texto_cc, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        # Criando botões para cada produto da lista
+        keyboard = []
+        for key, p in produtos.items():
+            keyboard.append([InlineKeyboardButton(f"{p['nome']} - R${p['preco']:.2f}", callback_data=f'view_{key}')])
+        keyboard.append([InlineKeyboardButton("« volta", callback_data='menu')])
+        await query.edit_message_text("💳 Escolha um cartão para ver detalhes:", reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif query.data.startswith('view_'):
+        # Mostrando o produto selecionado
+        cc_id = query.data.split('_')[1]
+        p = produtos[cc_id]
+        texto_cc = f"{p['previa']}\n\n{p['completo']}"
+        keyboard = [[InlineKeyboardButton("« voltar aos cartões", callback_data='cc')]]
+        await query.edit_message_text(texto_cc, reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif query.data == 'start':
         await start(update, context)
@@ -109,4 +127,4 @@ if __name__ == '__main__':
     app.add_handler(CallbackQueryHandler(button))
     
     app.run_polling()
-    
+        
