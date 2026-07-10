@@ -68,7 +68,8 @@ async def button(update, context):
             "💳 **LISTA DE CC FULL DADOS**\n\n"
             "🌟 CC GOLD: Qualidade Premium\n"
             "🔥 CC PLATINUM: Aprovacão garantida\n"
-            "💎 CC BLACK: Nível superior\n\n"
+            "💎 CC BLACK: Nível superior\n"
+            "🚀 MATERIAL COM ALTA TAXA DE APROVAÇÃO E DADOS ATUALIZADOS!\n\n"
             "Selecione uma categoria para visualizar os preços."
         )
         keyboard = [[InlineKeyboardButton("« volta", callback_data='menu')]]
@@ -102,4 +103,4 @@ if __name__ == '__main__':
     app.add_handler(CallbackQueryHandler(button))
     
     app.run_polling()
-    
+        
