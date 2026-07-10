@@ -17,14 +17,16 @@ produtos = [
         "bin": "516292",
         "nome": "Cartão Nubank Platinum - Mastercard",
         "preco": 2.00,
-        "demonstracao": "✨ *Detalhes do cartão*\n💳 *Cartão:* 516292*********\n📆 *Validade:* 07/2033\n🔐 *Cod:* ***\n\n🏳️ *Bandeira:* mastercard\n💠 *Nível:* nubank platinum\n⚜️ *Tipo:* credit\n🏛 *Banco:* nu pagamentos sa\n🌍 *Pais:* brazil\n\n👤 *Nome:* vanessa g almeida\n🪪 *cpf:* 25845634873"
+        "demonstracao": "✨ *Detalhes do cartão*\n💳 *Cartão:* 516292*********\n📆 *Validade:* 07/2033\n🔐 *Cod:* ***\n\n🏳️ *Bandeira:* mastercard\n💠 *Nível:* nubank platinum\n⚜️ *Tipo:* credit\n🏛 *Banco:* nu pagamentos sa\n🌍 *Pais:* brazil\n\n👤 *Nome:* vanessa g almeida\n🪪 *cpf:* 25845634873",
+        "completo": "✅ *COMPRA APROVADA!*\n\n✨ *Dados do cartão*\n💳 *Cartão:* 516292000055267\n📆 *Validade:* 07/2033\n🔐 *Cod:* 363\n\n👤 *Nome:* vanessa g almeida\n🪪 *cpf:* 25845634873"
     },
     {
         "id": 2,
         "bin": "516292",
         "nome": "Cartão Nubank Platinum - Mastercard",
         "preco": 2.00,
-        "demonstracao": "✨ *Detalhes do cartão*\n💳 *Cartão:* 516292*********\n📆 *Validade:* 07/2033\n🔐 *Cod:* ***\n\n🏳️ *Bandeira:* mastercard\n💠 *Nível:* nubank platinum\n⚜️ *Tipo:* credit\n🏛 *Banco:* nu pagamentos sa\n🌍 *Pais:* brazil\n\n👤 *Nome:* marcos g almeida\n🪪 *cpf:* 25845634873"
+        "demonstracao": "✨ *Detalhes do cartão*\n💳 *Cartão:* 516292*********\n📆 *Validade:* 07/2033\n🔐 *Cod:* ***\n\n🏳️ *Bandeira:* mastercard\n💠 *Nível:* nubank platinum\n⚜️ *Tipo:* credit\n🏛 *Banco:* nu pagamentos sa\n🌍 *Pais:* brazil\n\n👤 *Nome:* marcos g almeida\n🪪 *cpf:* 25845634873",
+        "completo": "✅ *COMPRA APROVADA!*\n\n✨ *Dados do cartão*\n💳 *Cartão:* 516292000055267\n📆 *Validade:* 07/2043\n🔐 *Cod:* 500\n\n👤 *Nome:* marcos g almeida\n🪪 *cpf:* 25845634873"
     }
 ]
 
@@ -38,7 +40,7 @@ def run_web():
     port = int(os.environ.get("PORT", 8080))
     app_web.run(host='0.0.0.0', port=port)
 
-# --- FUNÇÃO ADMIN: ADICIONAR SALDO ---
+# --- FUNÇÃO ADMIN ---
 async def admin_add_saldo(update, context):
     user_id = str(update.effective_user.id)
     if user_id != ADMIN_ID:
@@ -52,9 +54,9 @@ async def admin_add_saldo(update, context):
     if target_id not in users_db:
         users_db[target_id] = {"saldo": 0.00}
     users_db[target_id]["saldo"] += valor
-    await update.message.reply_text(f"✅ Saldo de R$ {valor:.2f} adicionado ao ID `{target_id}` com sucesso!", parse_mode='Markdown')
+    await update.message.reply_text(f"✅ Saldo de R$ {valor:.2f} adicionado ao ID `{target_id}`.", parse_mode='Markdown')
 
-# --- FUNÇÃO PARA EXIBIR PRODUTO ---
+# --- FUNÇÃO EXIBIR PRODUTO ---
 async def exibir_produto(query, idx):
     idx = max(0, min(idx, len(produtos) - 1))
     p = produtos[idx]
@@ -66,7 +68,7 @@ async def exibir_produto(query, idx):
     ]
     await query.edit_message_text(texto, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
 
-# --- MENU PRINCIPAL ---
+# --- MENU E START ---
 def get_menu_markup():
     keyboard = [
         [InlineKeyboardButton("💰 Adiciona Saldo", callback_data='saldo')],
@@ -76,7 +78,6 @@ def get_menu_markup():
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# --- COMANDO /START ---
 async def start(update, context):
     user_id = update.effective_user.id
     if user_id not in users_db:
@@ -102,6 +103,7 @@ async def start(update, context):
 async def button(update, context):
     query = update.callback_query
     await query.answer()
+    
     if query.data == 'menu':
         await query.edit_message_text("Escolha uma opção no menu abaixo:", reply_markup=get_menu_markup())
     elif query.data == 'cc':
@@ -109,18 +111,28 @@ async def button(update, context):
     elif query.data.startswith('prod_'):
         _, acao, idx = query.data.split('_')
         idx = int(idx)
-        if acao == 'prev': await exibir_produto(query, idx - 1)
-        elif acao == 'next': await exibir_produto(query, idx + 1)
+        if acao == 'prev':
+            await exibir_produto(query, idx - 1)
+        elif acao == 'next':
+            await exibir_produto(query, idx + 1)
         elif acao == 'buy':
-            await query.answer("Processando compra...", show_alert=True)
-            await query.message.reply_text(f"✅ Compra do Item {idx + 1} iniciada!")
+            produto = produtos[idx]
+            user_id = update.effective_user.id
+            if users_db.get(user_id, {}).get("saldo", 0) >= produto['preco']:
+                users_db[user_id]["saldo"] -= produto['preco']
+                await query.message.reply_text(produto['completo'], parse_mode='Markdown')
+                await query.answer("Compra realizada com sucesso!", show_alert=True)
+            else:
+                await query.answer("❌ Saldo insuficiente!", show_alert=True)
     elif query.data == 'perfil':
         user_id = update.effective_user.id
         saldo = users_db.get(user_id, {}).get("saldo", 0.00)
         texto_perfil = f"👤 **SEU PERFIL**\n\n🆔 ID: `{user_id}`\n💰 SALDO: R$ {saldo:.2f}\n\nUse o menu principal para adicionar saldo."
         await query.edit_message_text(texto_perfil, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« volta", callback_data='start')]]), parse_mode='Markdown')
-    elif query.data == 'start': await start(update, context)
-    elif query.data == 'regras': await query.edit_message_text("⚠️ Regras: Solicite troca em até 5 minutos com vídeo (GPAY).", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« volta", callback_data='start')]]))
+    elif query.data == 'start':
+        await start(update, context)
+    elif query.data == 'regras':
+        await query.edit_message_text("⚠️ Regras: Solicite troca em até 5 minutos com vídeo (GPAY).", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« volta", callback_data='start')]]))
 
 if __name__ == '__main__':
     Thread(target=run_web).start()
