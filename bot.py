@@ -1,3 +1,7 @@
+from telegram.ext import ConversationHandler, MessageHandler, filters
+# Defina os estados da conversa
+PASSO_NOME, PASSO_BIN, PASSO_PRECO, PASSO_DEMO, PASSO_COMPLETO = range(5)
+
 import os
 import sqlite3
 import json
