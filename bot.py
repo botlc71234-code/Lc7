@@ -13,7 +13,42 @@ from threading import Thread
 # --- CONFIGURAÇÃO ---
 ADMIN_ID = "8827427559"
 DB_NAME = "dados_bot.db"
+# --- ADICIONAR CC PELO BOT ---
+async def start_add_cc(update, context):
+    if str(update.effective_user.id) != ADMIN_ID: return
+    await update.message.reply_text("Vamos cadastrar uma nova CC. Qual o NOME do produto?")
+    return PASSO_NOME
 
+async def step_nome(update, context):
+    context.user_data['nome'] = update.message.text
+    await update.message.reply_text("Agora, qual o BIN do cartão?")
+    return PASSO_BIN
+
+async def step_bin(update, context):
+    context.user_data['bin'] = update.message.text
+    await update.message.reply_text("Qual o PREÇO (ex: 2.00)?")
+    return PASSO_PRECO
+
+async def step_preco(update, context):
+    context.user_data['preco'] = float(update.message.text)
+    await update.message.reply_text("Envie a MENSAGEM DE DEMONSTRAÇÃO:")
+    return PASSO_DEMO
+
+async def step_demo(update, context):
+    context.user_data['demo'] = update.message.text
+    await update.message.reply_text("Envie o CONTEÚDO COMPLETO (dados reais):")
+    return PASSO_COMPLETO
+
+async def step_completo(update, context):
+    conn = sqlite3.connect(DB_NAME)
+    conn.execute("INSERT INTO produtos (bin, nome, preco, demonstracao, completo) VALUES (?, ?, ?, ?, ?)",
+                 (context.user_data['bin'], context.user_data['nome'], context.user_data['preco'], 
+                  context.user_data['demo'], update.message.text))
+    conn.commit()
+    conn.close()
+    await update.message.reply_text("✅ Produto cadastrado com sucesso!")
+    return ConversationHandler.END
+    
 # --- BANCO DE DADOS ---
 def init_db():
     conn = sqlite3.connect(DB_NAME)
