@@ -165,6 +165,26 @@ async def button(update, context):
     elif query.data.startswith('prod_'):
         _, acao, idx = query.data.split('_')
         idx = int(idx)
+        elif query.data.startswith('bin_'):
+        _, acao, bin_procurada, idx = query.data.split('_')
+        idx = int(idx)
+        if acao == 'prev':
+            await exibir_bin_filtrada(query, bin_procurada, idx - 1)
+        elif acao == 'next':
+            await exibir_bin_filtrada(query, bin_procurada, idx + 1)
+        elif acao == 'buy':
+            resultados = [p for p in produtos if p['bin'].startswith(bin_procurada)]
+            produto = resultados[idx]
+            if users_db[user_id]["saldo"] >= produto['preco']:
+                users_db[user_id]["saldo"] -= produto['preco']
+                users_db[user_id]["compras"].append(produto['completo'])
+                salvar_dados()
+                await context.bot.send_message(chat_id=update.effective_chat.id, text=produto['completo'], parse_mode='Markdown')
+                produtos.remove(produto)
+                await query.edit_message_text("✅ Compra aprovada!")
+            else:
+                await query.answer("❌ Saldo insuficiente!", show_alert=True)
+                
         if acao == 'prev':
             await exibir_produto(query, idx - 1)
         elif acao == 'next':
