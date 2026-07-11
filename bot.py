@@ -1,5 +1,6 @@
 import os
 import json
+import sqlite3
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler
 from flask import Flask
@@ -8,20 +9,33 @@ from threading import Thread
 # --- ID DO ADMINISTRADOR ---
 ADMIN_ID = "8827427559"
 
-# --- PERSISTÊNCIA DE DADOS ---
-DB_FILE = "dados_bot.json"
+# --- PERSISTÊNCIA DE DADOS (SQLITE) ---
+DB_NAME = "dados_bot.db"
+
+def init_db():
+    conn = sqlite3.connect(DB_NAME)
+    conn.execute("CREATE TABLE IF NOT EXISTS users (user_id TEXT PRIMARY KEY, saldo REAL, compras TEXT)")
+    conn.commit()
+    conn.close()
 
 def carregar_dados():
-    if os.path.exists(DB_FILE):
-        with open(DB_FILE, "r") as f:
-            return json.load(f)
-    return {}
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("SELECT user_id, saldo, compras FROM users")
+    data = {row[0]: {"saldo": row[1], "compras": json.loads(row[2])} for row in cursor.fetchall()}
+    conn.close()
+    return data
 
 def salvar_dados():
-    with open(DB_FILE, "w") as f:
-        json.dump(users_db, f)
+    conn = sqlite3.connect(DB_NAME)
+    for uid, info in users_db.items():
+        conn.execute("REPLACE INTO users (user_id, saldo, compras) VALUES (?, ?, ?)", 
+                     (uid, info["saldo"], json.dumps(info["compras"])))
+    conn.commit()
+    conn.close()
 
 # --- BANCO DE DADOS ---
+init_db()
 users_db = carregar_dados()
 
 # --- VITRINE DE PRODUTOS ---
@@ -58,20 +72,16 @@ def run_web():
 async def buscar_bin(update, context):
     keyboard = [[InlineKeyboardButton("« Volta", callback_data='menu')]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
     if len(context.args) != 1:
         await update.message.reply_text("⚠️ Use: /bin 550209", reply_markup=reply_markup)
         return
-    
     bin_procurado = context.args[0]
     resultados = [p for p in produtos if p['bin'].startswith(bin_procurado)]
-    
     if not resultados:
         await update.message.reply_text(f"❌ Nenhum produto encontrado para o BIN: `{bin_procurado}`", reply_markup=reply_markup, parse_mode='Markdown')
     else:
         msg = f"🔍 *Resultados para o BIN {bin_procurado}:*\n\n"
-        for p in resultados:
-            msg += f"• {p['nome']} - R$ {p['preco']:.2f}\n"
+        for p in resultados: msg += f"• {p['nome']} - R$ {p['preco']:.2f}\n"
         await update.message.reply_text(msg, reply_markup=reply_markup, parse_mode='Markdown')
 
 # --- FUNÇÃO ADMIN ---
@@ -202,4 +212,4 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("bin", buscar_bin))
     app.add_handler(CallbackQueryHandler(button))
     app.run_polling()
-                                      
+    
