@@ -1,4 +1,5 @@
 import os
+import json
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler
 from flask import Flask
@@ -7,8 +8,21 @@ from threading import Thread
 # --- ID DO ADMINISTRADOR ---
 ADMIN_ID = "8827427559"
 
-# --- BANCO DE DADOS SIMPLES (Memória) ---
-users_db = {}
+# --- PERSISTÊNCIA DE DADOS ---
+DB_FILE = "dados_bot.json"
+
+def carregar_dados():
+    if os.path.exists(DB_FILE):
+        with open(DB_FILE, "r") as f:
+            return json.load(f)
+    return {}
+
+def salvar_dados():
+    with open(DB_FILE, "w") as f:
+        json.dump(users_db, f)
+
+# --- BANCO DE DADOS ---
+users_db = carregar_dados()
 
 # --- VITRINE DE PRODUTOS ---
 produtos = [
@@ -49,11 +63,12 @@ async def admin_add_saldo(update, context):
     if len(context.args) != 2:
         await update.message.reply_text("⚠️ Use: /addsaldo ID_USUARIO VALOR")
         return
-    target_id = int(context.args[0])
+    target_id = context.args[0]
     valor = float(context.args[1])
     if target_id not in users_db:
         users_db[target_id] = {"saldo": 0.00, "compras": []}
     users_db[target_id]["saldo"] += valor
+    salvar_dados()
     await update.message.reply_text(f"✅ Saldo de R$ {valor:.2f} adicionado ao ID `{target_id}`.", parse_mode='Markdown')
 
 # --- FUNÇÃO EXIBIR PRODUTO ---
@@ -82,9 +97,10 @@ def get_menu_markup():
     return InlineKeyboardMarkup(keyboard)
 
 async def start(update, context):
-    user_id = update.effective_user.id
+    user_id = str(update.effective_user.id)
     if user_id not in users_db:
         users_db[user_id] = {"saldo": 0.00, "compras": []}
+        salvar_dados()
     texto = (
         "👋 SEJA BEM-VINDO A OROCHI_STORE AS MELHORES FULL DADOS ESTAO AQUI 🚀\n"
         "✅ MATERIAL 100% VIRGEM✅\n"
@@ -105,10 +121,8 @@ async def start(update, context):
 # --- GERENCIADOR DE BOTÕES ---
 async def button(update, context):
     query = update.callback_query
-    # LINHA ESSENCIAL PARA O BOTÃO FUNCIONAR
     await query.answer() 
-    
-    user_id = update.effective_user.id
+    user_id = str(update.effective_user.id)
     if user_id not in users_db:
         users_db[user_id] = {"saldo": 0.00, "compras": []}
     
@@ -128,9 +142,9 @@ async def button(update, context):
             if users_db[user_id]["saldo"] >= produto['preco']:
                 users_db[user_id]["saldo"] -= produto['preco']
                 users_db[user_id]["compras"].append(produto['completo'])
+                salvar_dados()
                 
                 await context.bot.send_message(chat_id=update.effective_chat.id, text=produto['completo'], parse_mode='Markdown')
-                
                 produtos.pop(idx)
                 
                 if len(produtos) > 0:
@@ -138,7 +152,6 @@ async def button(update, context):
                 else:
                     await query.edit_message_text("❌ Nenhum produto disponível.")
             else:
-                # Opcional: mostrar alerta de erro
                 await query.answer("❌ Saldo insuficiente!", show_alert=True)
     elif query.data == 'perfil':
         saldo = users_db[user_id].get("saldo", 0.00)
@@ -168,4 +181,3 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("addsaldo", admin_add_saldo))
     app.add_handler(CallbackQueryHandler(button))
     app.run_polling()
-    
