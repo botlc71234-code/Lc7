@@ -8,7 +8,6 @@ from threading import Thread
 ADMIN_ID = "8827427559"
 
 # --- BANCO DE DADOS SIMPLES (Memória) ---
-# Adicionado a lista 'compras' para cada usuário
 users_db = {}
 
 # --- VITRINE DE PRODUTOS ---
@@ -106,7 +105,9 @@ async def start(update, context):
 # --- GERENCIADOR DE BOTÕES ---
 async def button(update, context):
     query = update.callback_query
-    await query.answer()
+    # LINHA ESSENCIAL PARA O BOTÃO FUNCIONAR
+    await query.answer() 
+    
     user_id = update.effective_user.id
     if user_id not in users_db:
         users_db[user_id] = {"saldo": 0.00, "compras": []}
@@ -126,10 +127,8 @@ async def button(update, context):
             produto = produtos[idx]
             if users_db[user_id]["saldo"] >= produto['preco']:
                 users_db[user_id]["saldo"] -= produto['preco']
-                # SALVA NO HISTÓRICO DO CLIENTE
                 users_db[user_id]["compras"].append(produto['completo'])
                 
-                await query.answer("Compra realizada!", show_alert=True)
                 await context.bot.send_message(chat_id=update.effective_chat.id, text=produto['completo'], parse_mode='Markdown')
                 
                 produtos.pop(idx)
@@ -139,10 +138,10 @@ async def button(update, context):
                 else:
                     await query.edit_message_text("❌ Nenhum produto disponível.")
             else:
+                # Opcional: mostrar alerta de erro
                 await query.answer("❌ Saldo insuficiente!", show_alert=True)
     elif query.data == 'perfil':
         saldo = users_db[user_id].get("saldo", 0.00)
-        # BOTÃO MINHAS CC ADICIONADO
         keyboard = [
             [InlineKeyboardButton("💳 Minhas CC", callback_data='minhas_cc')],
             [InlineKeyboardButton("« volta", callback_data='start')]
@@ -156,7 +155,6 @@ async def button(update, context):
         else:
             for cc in compras:
                 await context.bot.send_message(chat_id=update.effective_chat.id, text=cc, parse_mode='Markdown')
-            await query.answer("Enviando suas compras...")
     elif query.data == 'start':
         await start(update, context)
     elif query.data == 'regras':
@@ -170,4 +168,4 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("addsaldo", admin_add_saldo))
     app.add_handler(CallbackQueryHandler(button))
     app.run_polling()
-        
+    
