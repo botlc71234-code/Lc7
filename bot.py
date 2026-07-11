@@ -54,6 +54,21 @@ def run_web():
     port = int(os.environ.get("PORT", 8080))
     app_web.run(host='0.0.0.0', port=port)
 
+# --- FUNÇÃO BUSCA BIN ---
+async def buscar_bin(update, context):
+    if len(context.args) != 1:
+        await update.message.reply_text("⚠️ Use: /bin 550209")
+        return
+    bin_procurado = context.args[0]
+    resultados = [p for p in produtos if p['bin'].startswith(bin_procurado)]
+    if not resultados:
+        await update.message.reply_text(f"❌ Nenhum produto encontrado para o BIN: `{bin_procurado}`", parse_mode='Markdown')
+    else:
+        msg = f"🔍 *Resultados para o BIN {bin_procurado}:*\n\n"
+        for p in resultados:
+            msg += f"• {p['nome']} - R$ {p['preco']:.2f}\n"
+        await update.message.reply_text(msg, parse_mode='Markdown')
+
 # --- FUNÇÃO ADMIN ---
 async def admin_add_saldo(update, context):
     user_id = str(update.effective_user.id)
@@ -130,6 +145,8 @@ async def button(update, context):
         await query.edit_message_text("Escolha uma opção no menu abaixo:", reply_markup=get_menu_markup())
     elif query.data == 'cc':
         await exibir_produto(query, 0)
+    elif query.data == 'bin':
+        await query.edit_message_text("🔍 Use o comando no chat:\n/bin 550209")
     elif query.data.startswith('prod_'):
         _, acao, idx = query.data.split('_')
         idx = int(idx)
@@ -143,10 +160,8 @@ async def button(update, context):
                 users_db[user_id]["saldo"] -= produto['preco']
                 users_db[user_id]["compras"].append(produto['completo'])
                 salvar_dados()
-                
                 await context.bot.send_message(chat_id=update.effective_chat.id, text=produto['completo'], parse_mode='Markdown')
                 produtos.pop(idx)
-                
                 if len(produtos) > 0:
                     await exibir_produto(query, 0)
                 else:
@@ -179,5 +194,7 @@ if __name__ == '__main__':
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("addsaldo", admin_add_saldo))
+    app.add_handler(CommandHandler("bin", buscar_bin))
     app.add_handler(CallbackQueryHandler(button))
     app.run_polling()
+                                         
