@@ -1,235 +1,119 @@
 import os
-import json
 import sqlite3
+import json
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler
 from flask import Flask
 from threading import Thread
 
-# --- ID DO ADMINISTRADOR ---
+# --- CONFIGURAÇÃO ---
 ADMIN_ID = "8827427559"
-
-# --- PERSISTÊNCIA DE DADOS (SQLITE) ---
 DB_NAME = "dados_bot.db"
 
+# --- BANCO DE DADOS ---
 def init_db():
     conn = sqlite3.connect(DB_NAME)
+    # Tabela de usuários com histórico de compras em JSON
     conn.execute("CREATE TABLE IF NOT EXISTS users (user_id TEXT PRIMARY KEY, saldo REAL, compras TEXT)")
+    # Tabela de produtos
+    conn.execute("""CREATE TABLE IF NOT EXISTS produtos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, bin TEXT, nome TEXT, preco REAL, 
+        demonstracao TEXT, completo TEXT)""")
     conn.commit()
     conn.close()
 
-def carregar_dados():
+def get_db_connection():
     conn = sqlite3.connect(DB_NAME)
+    return conn
+
+# --- FUNÇÕES DE DADOS ---
+def get_user(user_id):
+    conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT user_id, saldo, compras FROM users")
-    data = {row[0]: {"saldo": row[1], "compras": json.loads(row[2])} for row in cursor.fetchall()}
+    cursor.execute("SELECT saldo, compras FROM users WHERE user_id = ?", (user_id,))
+    row = cursor.fetchone()
     conn.close()
-    return data
+    if row:
+        return {"saldo": row[0], "compras": json.loads(row[1])}
+    return {"saldo": 0.00, "compras": []}
 
-def salvar_dados():
-    conn = sqlite3.connect(DB_NAME)
-    for uid, info in users_db.items():
-        conn.execute("REPLACE INTO users (user_id, saldo, compras) VALUES (?, ?, ?)", 
-                     (uid, info["saldo"], json.dumps(info["compras"])))
+def save_user(user_id, saldo, compras):
+    conn = get_db_connection()
+    conn.execute("REPLACE INTO users (user_id, saldo, compras) VALUES (?, ?, ?)", 
+                 (user_id, saldo, json.dumps(compras)))
     conn.commit()
     conn.close()
 
-# --- BANCO DE DADOS ---
-init_db()
-users_db = carregar_dados()
-
-# --- VITRINE DE PRODUTOS ---
-produtos = [
-    {
-        "id": 1,
-        "bin": "516292",
-        "nome": "Cartão Nubank Platinum - Mastercard",
-        "preco": 2.00,
-        "demonstracao": "✨ *Detalhes do cartão*\n💳 *Cartão:* 516292*********\n📆 *Validade:* 07/2033\n🔐 *Cod:* ***\n\n🏳️ *Bandeira:* mastercard\n💠 *Nível:* nubank platinum\n⚜️ *Tipo:* credit\n🏛 *Banco:* nu pagamentos sa\n🌍 *Pais:* brazil\n\n👤 *Nome:* vanessa g almeida\n🪪 *cpf:* 25845634873",
-        "completo": "✅ *COMPRA APROVADA!*\n\n✨ *Dados do cartão*\n💳 *Cartão:* 516292000055267\n📆 *Validade:* 07/2033\n🔐 *Cod:* 363\n\n👤 *Nome:* vanessa g almeida\n🪪 *cpf:* 25845634873"
-    },
-    {
-        "id": 2,
-        "bin": "516292",
-        "nome": "Cartão Nubank Platinum - Mastercard",
-        "preco": 2.00,
-        "demonstracao": "✨ *Detalhes do cartão*\n💳 *Cartão:* 516292*********\n📆 *Validade:* 07/2033\n🔐 *Cod:* ***\n\n🏳️ *Bandeira:* mastercard\n💠 *Nível:* nubank platinum\n⚜️ *Tipo:* credit\n🏛 *Banco:* nu pagamentos sa\n🌍 *Pais:* brazil\n\n👤 *Nome:* marcos g almeida\n🪪 *cpf:* 25845634873",
-        "completo": "✅ *COMPRA APROVADA!*\n\n✨ *Dados do cartão*\n💳 *Cartão:* 516292000055267\n📆 *Validade:* 07/2043\n🔐 *Cod:* 500\n\n👤 *Nome:* marcos g almeida\n🪪 *cpf:* 25845634873"
-    }
-]
-
-# --- CONFIGURAÇÃO DO FLASK ---
+# --- FLASK ---
 app_web = Flask(__name__)
 @app_web.route('/')
-def home():
-    return "Bot Lc7 online!"
+def home(): return "Bot Lc7 online!"
+def run_web(): app_web.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8080)))
 
-def run_web():
-    port = int(os.environ.get("PORT", 8080))
-    app_web.run(host='0.0.0.0', port=port)
-
-# --- FUNÇÃO BUSCA BIN ---
-async def buscar_bin(update, context):
-    keyboard = [[InlineKeyboardButton("« Volta", callback_data='menu')]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    if len(context.args) != 1:
-        await update.message.reply_text("⚠️ Use: /bin 550209", reply_markup=reply_markup)
-        return
-    bin_procurado = context.args[0]
-    resultados = [p for p in produtos if p['bin'].startswith(bin_procurado)]
-    if not resultados:
-        await update.message.reply_text(f"❌ Nenhum produto encontrado para o BIN: `{bin_procurado}`", reply_markup=reply_markup, parse_mode='Markdown')
-    else:
-        msg = f"🔍 *Resultados para o BIN {bin_procurado}:*\n\n"
-        for p in resultados: msg += f"• {p['nome']} - R$ {p['preco']:.2f}\n"
-        await update.message.reply_text(msg, reply_markup=reply_markup, parse_mode='Markdown')
-
-# --- FUNÇÃO ADMIN ---
-async def admin_add_saldo(update, context):
-    user_id = str(update.effective_user.id)
-    if user_id != ADMIN_ID:
-        await update.message.reply_text("❌ Acesso negado.")
-        return
-    if len(context.args) != 2:
-        await update.message.reply_text("⚠️ Use: /addsaldo ID_USUARIO VALOR")
-        return
-    target_id = context.args[0]
-    valor = float(context.args[1])
-    if target_id not in users_db:
-        users_db[target_id] = {"saldo": 0.00, "compras": []}
-    users_db[target_id]["saldo"] += valor
-    salvar_dados()
-    await update.message.reply_text(f"✅ Saldo de R$ {valor:.2f} adicionado ao ID `{target_id}`.", parse_mode='Markdown')
-
-# --- FUNÇÃO EXIBIR PRODUTO ---
-async def exibir_produto(query, idx):
-    if not produtos:
-        await query.edit_message_text("❌ Não há mais produtos disponíveis no momento.")
-        return
-    idx = max(0, min(idx, len(produtos) - 1))
-    p = produtos[idx]
-    texto = f"📦 *Item {idx + 1} de {len(produtos)}*\n\n{p['demonstracao']}\n\n⠀"
-    keyboard = [
-        [InlineKeyboardButton("« Anterior", callback_data=f'prod_prev_{idx}'), InlineKeyboardButton("Próximo »", callback_data=f'prod_next_{idx}')],
-        [InlineKeyboardButton(f"💰 COMPRAR - R$ {p['preco']:.2f}", callback_data=f'prod_buy_{idx}')],
-        [InlineKeyboardButton("« volta ao menu", callback_data='menu')]
-    ]
-    await query.edit_message_text(texto, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
-
-# --- MENU E START ---
-def get_menu_markup():
-    keyboard = [
-        [InlineKeyboardButton("💰 Adiciona Saldo", callback_data='saldo')],
-        [InlineKeyboardButton("💳 CC FULL DADOS", callback_data='cc')],
-        [InlineKeyboardButton("🔍 Busca bin", callback_data='bin')],
-        [InlineKeyboardButton("« volta", callback_data='start')]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
+# --- FUNÇÕES ---
 async def start(update, context):
     user_id = str(update.effective_user.id)
-    if user_id not in users_db:
-        users_db[user_id] = {"saldo": 0.00, "compras": []}
-        salvar_dados()
-    texto = (
-        "👋 SEJA BEM-VINDO A OROCHI_STORE AS MELHORES FULL DADOS ESTAO AQUI 🚀\n"
-        "✅ MATERIAL 100% VIRGEM✅\n"
-        "📊 MATERIAL PREMIUM DE ADMIN FULL DADOS COM GARANTIA DE CPF 100% BATENDO!\n"
-        "🔍 PARA CONSULTAR CPF ANTES DA COMPRA, BASTAR TER 30$ DE SALDO DISPONIVEL NO BOT."
-    )
+    # Cria o usuário se não existir
+    data = get_user(user_id)
+    save_user(user_id, data["saldo"], data["compras"])
+    
+    texto = "👋 SEJA BEM-VINDO A OROCHI_STORE!"
     keyboard = [
         [InlineKeyboardButton("Menu", callback_data='menu'), InlineKeyboardButton("Seu Perfil", callback_data='perfil')],
-        [InlineKeyboardButton("🛠️ SUPORTE", url="https://wa.me/5511999999999")], 
-        [InlineKeyboardButton("⚠️ REGRAS DE TROCA⚠️", callback_data='regras')]
+        [InlineKeyboardButton("🛠️ SUPORTE", url="https://wa.me/5511999999999")]
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    if update.message:
-        await update.message.reply_text(texto, reply_markup=reply_markup)
-    else:
-        await update.callback_query.edit_message_text(texto, reply_markup=reply_markup)
+    if update.message: await update.message.reply_text(texto, reply_markup=InlineKeyboardMarkup(keyboard))
+    else: await update.callback_query.edit_message_text(texto, reply_markup=InlineKeyboardMarkup(keyboard))
 
-# --- GERENCIADOR DE BOTÕES ---
 async def button(update, context):
     query = update.callback_query
-    await query.answer() 
+    await query.answer()
     user_id = str(update.effective_user.id)
-    if user_id not in users_db:
-        users_db[user_id] = {"saldo": 0.00, "compras": []}
-    
+    data = get_user(user_id)
+
     if query.data == 'menu':
-        await query.edit_message_text("Escolha uma opção no menu abaixo:", reply_markup=get_menu_markup())
-    elif query.data == 'cc':
-        await exibir_produto(query, 0)
-    elif query.data == 'bin':
-        await query.edit_message_text("🔍 Use o comando no chat:\n/bin 550209", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Volta", callback_data='menu')]]))
-    elif query.data.startswith('prod_'):
-        _, acao, idx = query.data.split('_')
-        idx = int(idx)
-        elif query.data.startswith('bin_'):
-        _, acao, bin_procurada, idx = query.data.split('_')
-        idx = int(idx)
-        if acao == 'prev':
-            await exibir_bin_filtrada(query, bin_procurada, idx - 1)
-        elif acao == 'next':
-            await exibir_bin_filtrada(query, bin_procurada, idx + 1)
-        elif acao == 'buy':
-            resultados = [p for p in produtos if p['bin'].startswith(bin_procurada)]
-            produto = resultados[idx]
-            if users_db[user_id]["saldo"] >= produto['preco']:
-                users_db[user_id]["saldo"] -= produto['preco']
-                users_db[user_id]["compras"].append(produto['completo'])
-                salvar_dados()
-                await context.bot.send_message(chat_id=update.effective_chat.id, text=produto['completo'], parse_mode='Markdown')
-                produtos.remove(produto)
-                await query.edit_message_text("✅ Compra aprovada!")
-            else:
-                await query.answer("❌ Saldo insuficiente!", show_alert=True)
-                
-        if acao == 'prev':
-            await exibir_produto(query, idx - 1)
-        elif acao == 'next':
-            await exibir_produto(query, idx + 1)
-        elif acao == 'buy':
-            produto = produtos[idx]
-            if users_db[user_id]["saldo"] >= produto['preco']:
-                users_db[user_id]["saldo"] -= produto['preco']
-                users_db[user_id]["compras"].append(produto['completo'])
-                salvar_dados()
-                await context.bot.send_message(chat_id=update.effective_chat.id, text=produto['completo'], parse_mode='Markdown')
-                produtos.pop(idx)
-                if len(produtos) > 0:
-                    await exibir_produto(query, 0)
-                else:
-                    await query.edit_message_text("❌ Nenhum produto disponível.")
-            else:
-                await query.answer("❌ Saldo insuficiente!", show_alert=True)
-    elif query.data == 'perfil':
-        saldo = users_db[user_id].get("saldo", 0.00)
         keyboard = [
-            [InlineKeyboardButton("💳 Minhas CC", callback_data='minhas_cc')],
+            [InlineKeyboardButton("💰 Adicionar Saldo", callback_data='saldo')],
+            [InlineKeyboardButton("💳 CC FULL DADOS", callback_data='cc')],
+            [InlineKeyboardButton("🔍 Busca bin", callback_data='bin')],
             [InlineKeyboardButton("« volta", callback_data='start')]
         ]
-        texto_perfil = f"👤 **SEU PERFIL**\n\n🆔 ID: `{user_id}`\n💰 SALDO: R$ {saldo:.2f}"
-        await query.edit_message_text(texto_perfil, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
-    elif query.data == 'minhas_cc':
-        compras = users_db[user_id].get("compras", [])
-        if not compras:
-            await query.answer("Você não tem compras.", show_alert=True)
+        await query.edit_message_text("Escolha uma opção:", reply_markup=InlineKeyboardMarkup(keyboard))
+    
+    elif query.data == 'cc':
+        conn = get_db_connection()
+        prod = conn.execute("SELECT * FROM produtos LIMIT 1").fetchone()
+        conn.close()
+        if prod:
+            await query.edit_message_text(f"📦 Produto: {prod[2]}\nPreço: R$ {prod[3]}", 
+                                          reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("💰 Comprar", callback_data=f'buy_{prod[0]}')]]))
         else:
-            for cc in compras:
-                await context.bot.send_message(chat_id=update.effective_chat.id, text=cc, parse_mode='Markdown')
-    elif query.data == 'start':
-        await start(update, context)
-    elif query.data == 'regras':
-        await query.edit_message_text("⚠️ Regras: Solicite troca em até 5 minutos com vídeo (GPAY).", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« volta", callback_data='start')]]))
+            await query.edit_message_text("❌ Nenhum produto.")
+
+    elif query.data.startswith('buy_'):
+        pid = query.data.split('_')[1]
+        conn = get_db_connection()
+        prod = conn.execute("SELECT * FROM produtos WHERE id = ?", (pid,)).fetchone()
+        if data["saldo"] >= prod[3]:
+            data["saldo"] -= prod[3]
+            data["compras"].append(prod[5])
+            save_user(user_id, data["saldo"], data["compras"])
+            conn.execute("DELETE FROM produtos WHERE id = ?", (pid,))
+            conn.commit()
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=f"✅ APROVADO!\n{prod[5]}")
+        else:
+            await query.answer("❌ Saldo insuficiente!", show_alert=True)
+        conn.close()
+
+    elif query.data == 'perfil':
+        await query.edit_message_text(f"💰 SALDO: R$ {data['saldo']:.2f}")
 
 if __name__ == '__main__':
+    init_db()
     Thread(target=run_web).start()
     TOKEN = os.environ.get("TELEGRAM_TOKEN")
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("addsaldo", admin_add_saldo))
-    app.add_handler(CommandHandler("bin", buscar_bin))
     app.add_handler(CallbackQueryHandler(button))
     app.run_polling()
-    
+                                  
