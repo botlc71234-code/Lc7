@@ -48,7 +48,19 @@ async def step_completo(update, context):
     conn.close()
     await update.message.reply_text("✅ Produto cadastrado com sucesso!")
     return ConversationHandler.END
-    
+      conv_handler = ConversationHandler(
+        entry_points=[CommandHandler('addcc', start_add_cc)],
+        states={
+            PASSO_NOME: [MessageHandler(filters.TEXT & ~filters.COMMAND, step_nome)],
+            PASSO_BIN: [MessageHandler(filters.TEXT & ~filters.COMMAND, step_bin)],
+            PASSO_PRECO: [MessageHandler(filters.TEXT & ~filters.COMMAND, step_preco)],
+            PASSO_DEMO: [MessageHandler(filters.TEXT & ~filters.COMMAND, step_demo)],
+            PASSO_COMPLETO: [MessageHandler(filters.TEXT & ~filters.COMMAND, step_completo)],
+        },
+        fallbacks=[]
+    )
+    app.add_handler(conv_handler)
+
 # --- BANCO DE DADOS ---
 def init_db():
     conn = sqlite3.connect(DB_NAME)
