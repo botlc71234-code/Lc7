@@ -56,18 +56,23 @@ def run_web():
 
 # --- FUNÇÃO BUSCA BIN ---
 async def buscar_bin(update, context):
+    keyboard = [[InlineKeyboardButton("« Volta", callback_data='menu')]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
     if len(context.args) != 1:
-        await update.message.reply_text("⚠️ Use: /bin 550209")
+        await update.message.reply_text("⚠️ Use: /bin 550209", reply_markup=reply_markup)
         return
+    
     bin_procurado = context.args[0]
     resultados = [p for p in produtos if p['bin'].startswith(bin_procurado)]
+    
     if not resultados:
-        await update.message.reply_text(f"❌ Nenhum produto encontrado para o BIN: `{bin_procurado}`", parse_mode='Markdown')
+        await update.message.reply_text(f"❌ Nenhum produto encontrado para o BIN: `{bin_procurado}`", reply_markup=reply_markup, parse_mode='Markdown')
     else:
         msg = f"🔍 *Resultados para o BIN {bin_procurado}:*\n\n"
         for p in resultados:
             msg += f"• {p['nome']} - R$ {p['preco']:.2f}\n"
-        await update.message.reply_text(msg, parse_mode='Markdown')
+        await update.message.reply_text(msg, reply_markup=reply_markup, parse_mode='Markdown')
 
 # --- FUNÇÃO ADMIN ---
 async def admin_add_saldo(update, context):
@@ -146,7 +151,7 @@ async def button(update, context):
     elif query.data == 'cc':
         await exibir_produto(query, 0)
     elif query.data == 'bin':
-        await query.edit_message_text("🔍 Use o comando no chat:\n/bin 550209")
+        await query.edit_message_text("🔍 Use o comando no chat:\n/bin 550209", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Volta", callback_data='menu')]]))
     elif query.data.startswith('prod_'):
         _, acao, idx = query.data.split('_')
         idx = int(idx)
@@ -197,4 +202,4 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("bin", buscar_bin))
     app.add_handler(CallbackQueryHandler(button))
     app.run_polling()
-                                         
+                                      
